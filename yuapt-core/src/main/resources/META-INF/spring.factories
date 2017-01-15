@@ -1,0 +1,4 @@
+# CUSTOM Auto Configuration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.yuapt.service.core.YuaptConfiguration,\
+com.yuapt.service.core.feign.FeignAutoConfiguration
