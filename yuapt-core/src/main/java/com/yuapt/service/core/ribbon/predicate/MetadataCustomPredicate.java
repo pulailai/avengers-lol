@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSON;
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestVariableDefault;
 import com.netflix.niws.loadbalancer.DiscoveryEnabledServer;
 import com.yanglinkui.ab.dsl.Operation;
+import com.yanglinkui.ab.dsl.Variable;
+import com.yanglinkui.ab.dsl.service.ServiceContext;
 import com.yanglinkui.ab.dsl.service.ServiceLexer;
 import com.yanglinkui.ab.dsl.service.ServiceParser;
 import com.yanglinkui.ab.dsl.service.Statements;
@@ -15,9 +17,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by jimmy on 17/1/5.
@@ -36,36 +36,41 @@ public class MetadataCustomPredicate extends DiscoveryEnabledPredicate {
         final HystrixRequestVariableDefault<String> hrvd = YuaptHystrixRequestContext.getInstance();
         final String serviceHeader = hrvd.get();
 
-        //获取serviceHeader 假如表达式是 s1.version = [1, 2.1, 3], s2.ip != ['192.168.10.1'] 添加灰度发布逻辑
+        //获取serviceHeader 假如表达式是 s1.version >= 1, s2.ip != ['192.168.10.1'] 添加灰度发布逻辑
         try {
             if (null != serviceHeader && StringUtils.isNotEmpty(serviceHeader)) {
                 //解析
                 ServiceParser p = new ServiceParser(new ServiceLexer(serviceHeader));
                 Statements s = p.statements();
                 //获得操作
-                Operation op = s.getOperation(server.getInstanceInfo().getAppName() + ".version");
-//              op.interpret(new ServiceContext() {
-//                @Override
-//                public String getValue(Variable variable) {
-//                    return null;
-//                }
-//              });
+                final Map<String, String> metadata = server.getInstanceInfo().getMetadata();
+                for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                    String key = server.getInstanceInfo().getAppName() + "." + entry.getKey();
+                    Operation op = s.getOperation(key);
+                    if (op != null) {
+                        boolean ok = op.interpret(new ServiceContext() {
+                            @Override
+                            public String getValue(Variable variable) {
+                                return entry.getValue();
+                            }
+                        });
 
-                if (op != null && StringUtils.isNotEmpty(String.valueOf(op.getValue()))) {
-                    context.add("version", op.getValue().getValue().toString());
+                        if (ok) {
+                            return true;
+                        }
+                    }
+
                 }
             }
 
             LOGGER.info("The value of the server header is [{}]", serviceHeader);
 
+            return false;
         }
         catch (Exception e) {
             LOGGER.error("解析serviceHeader[{}]失败;异常信息[{}]", new Object[]{serviceHeader, e.getMessage()});
+            return  false;
         }
 
-        final Set<Map.Entry<String, String>> attributes = Collections.unmodifiableSet(context.getAttributes().entrySet());
-        final Map<String, String> metadata = server.getInstanceInfo().getMetadata();
-        LOGGER.info("==========="+JSON.toJSONString(metadata));
-        return metadata.entrySet().containsAll(attributes);
     }
 }
