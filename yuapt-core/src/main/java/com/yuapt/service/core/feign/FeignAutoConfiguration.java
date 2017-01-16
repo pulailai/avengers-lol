@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ConditionalOnClass({Feign.class})
-@ConditionalOnProperty(value = "feign.yuapt.enabled", matchIfMissing = true)
+@ConditionalOnProperty(value = "feign.avengers.enabled", matchIfMissing = true)
 public class FeignAutoConfiguration {
 
     @Bean

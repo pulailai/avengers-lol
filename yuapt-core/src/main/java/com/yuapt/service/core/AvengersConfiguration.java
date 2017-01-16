@@ -13,9 +13,9 @@ import org.springframework.core.Ordered;
  * Created by jimmy on 17/1/9.
  */
 @Configuration
-public class YuaptConfiguration {
+public class AvengersConfiguration {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(YuaptConfiguration.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(AvengersConfiguration.class);
 
     /**
      * metadataCustomRule

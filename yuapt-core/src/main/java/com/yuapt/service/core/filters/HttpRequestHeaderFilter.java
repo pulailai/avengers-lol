@@ -2,8 +2,12 @@ package com.yuapt.service.core.filters;
 
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestContext;
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestVariableDefault;
+import com.yanglinkui.ab.dsl.service.ServiceLexer;
+import com.yanglinkui.ab.dsl.service.ServiceParser;
+import com.yanglinkui.ab.dsl.service.Statements;
 import com.yuapt.service.core.Constants;
-import com.yuapt.service.core.hystrix.YuaptHystrixRequestContext;
+import com.yuapt.service.core.hystrix.AvengersHystrixRequestContext;
+import com.yuapt.service.core.utils.AvengersHttpHeader;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +16,9 @@ import javax.servlet.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by jimmy on 17/1/5.
@@ -48,29 +55,50 @@ public class HttpRequestHeaderFilter implements Filter {
         }
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-
-        //获取service header
-        String serverHeader = httpRequest.getHeader(Constants.SERVICE_HEADER);
         HystrixRequestContext context = null;
+
         try {
-            if (null != serverHeader && StringUtils.isNotEmpty(serverHeader)) {
-                //创建HystrixRequestContext
-                context = HystrixRequestContext.initializeContext();
-                HystrixRequestVariableDefault<String> hrvd = YuaptHystrixRequestContext.getInstance();
-                hrvd.set(serverHeader);
-            }
-            else {
-                LOGGER.warn("No incoming service header。");
-            }
+            //创建HystrixRequestContext
+            context = HystrixRequestContext.initializeContext();
+            HystrixRequestVariableDefault<AvengersHttpHeader> hrvd = AvengersHystrixRequestContext.getInstance();
+            hrvd.set(this.getInstance(httpRequest));
 
             filterChain.doFilter(httpRequest, response);
         }
         finally {
+
             if (null != context) context.shutdown();
         }
+
     }
 
     @Override
     public void destroy() {
     }
+
+
+    private  AvengersHttpHeader getInstance(HttpServletRequest request) {
+
+        //获取headers
+        Map<String, String> headers = new HashMap<String, String>();
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String key = headerNames.nextElement();
+            String value = request.getHeader(key);
+            headers.put(key, value);
+        }
+
+        //解析 service header
+        String serviceHeader = request.getHeader(Constants.SERVICE_HEADER);
+        Statements s = null;
+        if (null != serviceHeader && StringUtils.isNotEmpty(serviceHeader)) {
+            ServiceParser p = new ServiceParser(new ServiceLexer(serviceHeader));
+            s = p.statements();
+        }
+
+        return new AvengersHttpHeader(headers, s);
+
+    }
+
+
 }

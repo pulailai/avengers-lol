@@ -1,14 +1,16 @@
 package com.yuapt.service.core.feign;
 
+import com.alibaba.fastjson.JSON;
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestContext;
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestVariableDefault;
-import com.yuapt.service.core.Constants;
-import com.yuapt.service.core.hystrix.YuaptHystrixRequestContext;
+import com.yuapt.service.core.hystrix.AvengersHystrixRequestContext;
+import com.yuapt.service.core.utils.AvengersHttpHeader;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 /**
  * Created by jimmy on 17/1/5.
@@ -24,6 +26,7 @@ public class FeignRequestInterceptor implements RequestInterceptor {
 
     /**
      * Service header 如果为null,会影响灰度发布
+     *
      * @param requestTemplate
      */
     @Override
@@ -31,18 +34,25 @@ public class FeignRequestInterceptor implements RequestInterceptor {
         LOGGER.info("Start set header information");
         HystrixRequestContext.getContextForCurrentThread();
 
-        HystrixRequestVariableDefault<String> hrvd = YuaptHystrixRequestContext.getInstance();
-        final String serverHeader = hrvd.get();
+        HystrixRequestVariableDefault<AvengersHttpHeader> hrvd = AvengersHystrixRequestContext.getInstance();
+        final AvengersHttpHeader avengersHttpHeader = hrvd.get();
+
         try {
-            if (null != serverHeader && StringUtils.isNotEmpty(serverHeader)) {
-                requestTemplate.header(Constants.SERVICE_HEADER, serverHeader);
-                LOGGER.info("Service header value is [{}]", serverHeader);
+
+            if (avengersHttpHeader != null && !avengersHttpHeader.getHeaders().isEmpty()) {
+                Map<String, String> headers = avengersHttpHeader.getHeaders();
+                for (String key : headers.keySet()) {
+                    requestTemplate.header(key, headers.get(key));
+                }
+                LOGGER.info("Service headers values is [{}]", JSON.toJSONString(headers));
             }
             else {
-                LOGGER.warn("Service header is null ");
+
+                LOGGER.warn("No incoming headers。");
             }
 
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             LOGGER.error("Feign requestTemplate set header failure;exception information[{}]", e.getMessage());
         }
 

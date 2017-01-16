@@ -17,10 +17,10 @@ import org.springframework.context.annotation.ComponentScan;
 //        FeignRequestInterceptor.class,
 //        YuaptConfiguration.class
 //})
-//@ComponentScan("com.yuapt.core")
 public class YuaptServerFeignApplication {
 
     public static void main(String[] args) {
+        System.out.println(System.getProperty("host.ip"));
         ConfigurableApplicationContext context = SpringApplication.run(YuaptServerFeignApplication.class, args);
     }
 
